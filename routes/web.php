@@ -40,6 +40,26 @@ Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
 
+// Test route for MongoDB connection
+Route::get('/test-mongodb', function () {
+    try {
+        $user = Auth::user();
+        $department = $user->department();
+        return [
+            'user_id' => $user->_id,
+            'department_id' => $user->attributes['department'] ?? null,
+            'department' => $department ? $department->toArray() : null,
+            'department_name' => $department ? $department->depName : null,
+            'department_name_attribute' => $user->department_name
+        ];
+    } catch (\Exception $e) {
+        return [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ];
+    }
+});
+
 // Temporary route to check user role
 Route::get('/check-role', function () {
     $user = User::where('email', 'dunstanrathnayake@gmail.com')->first();

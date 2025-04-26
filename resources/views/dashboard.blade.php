@@ -7,7 +7,10 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2 class="card-title mb-0">Welcome, {{ Auth::user()->full_name }}</h2>
+                        <div>
+                            <h2 class="card-title mb-1">Welcome, {{ Auth::user()->full_name }}</h2>
+                            <p class="text-muted mb-0">Department: {{ Auth::user()->department_name ?? 'Not Assigned' }}</p>
+                        </div>
                         <form method="POST" action="{{ route('logout') }}" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-outline-danger">

@@ -4,17 +4,17 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use MongoDB\Laravel\Auth\User as MongoAuthenticatable;
 use Illuminate\Notifications\Notifiable;
-use MongoDB\Laravel\Auth\User as MongoDBUser;
-use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
-use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Contracts\Auth\Access\Authorizable as AuthorizableContract;
+use Illuminate\Foundation\Auth\Access\Authorizable;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends MongoDBUser implements AuthenticatableContract
+class User extends MongoAuthenticatable implements AuthorizableContract
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, AuthenticatableTrait;
+    use HasApiTokens, HasFactory, Notifiable, Authorizable;
 
     protected $connection = 'mongodb';
     protected $collection = 'users';
@@ -36,6 +36,7 @@ class User extends MongoDBUser implements AuthenticatableContract
         'refNo',
         'role',
         'imageUrl',
+        'department'
     ];
 
     /**
@@ -140,5 +141,35 @@ class User extends MongoDBUser implements AuthenticatableContract
     {
         $role = $this->getRoleAttribute();
         return $role && strtoupper($role->name) === 'TEACHER';
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role', '_id');
+    }
+
+    public function department()
+    {
+        if (!isset($this->attributes['department'])) {
+            return null;
+        }
+        
+        return Department::find($this->attributes['department']);
+    }
+
+    /**
+     * Get the department name.
+     *
+     * @return string|null
+     */
+    public function getDepartmentNameAttribute(): ?string
+    {
+        $dept = $this->department();
+        if (!$dept) {
+            return null;
+        }
+        
+        $refNo = $dept->refNo ?? '';
+        return $refNo ? "{$dept->depName} ({$refNo})" : $dept->depName;
     }
 }
