@@ -7,7 +7,7 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2 class="card-title mb-0">Welcome, {{ Auth::user()->name ?? Auth::user()->email }}</h2>
+                        <h2 class="card-title mb-0">Welcome, {{ Auth::user()->full_name }}</h2>
                         <form method="POST" action="{{ route('logout') }}" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-outline-danger">
@@ -29,7 +29,7 @@
                                     </div>
                                 </div>
                                 <div class="card-footer d-flex align-items-center justify-content-between">
-                                    <a href="#" class="text-white text-decoration-none">View Details</a>
+                                    <a href="{{ route('profile.show') }}" class="text-white text-decoration-none">View Details</a>
                                     <i class="fas fa-angle-right"></i>
                                 </div>
                             </div>
@@ -40,14 +40,14 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h6 class="text-uppercase mb-1">Settings</h6>
-                                            <h3 class="mb-0">Manage</h3>
+                                            <h6 class="text-uppercase mb-1">Leave Balance</h6>
+                                            <h3 class="mb-0">{{ Auth::user()->leave_balance ?? 0 }} Days</h3>
                                         </div>
-                                        <i class="fas fa-cog fa-2x opacity-50"></i>
+                                        <i class="fas fa-calendar-check fa-2x opacity-50"></i>
                                     </div>
                                 </div>
                                 <div class="card-footer d-flex align-items-center justify-content-between">
-                                    <a href="#" class="text-white text-decoration-none">View Details</a>
+                                    <a href="{{ route('leave.balance') }}" class="text-white text-decoration-none">View Details</a>
                                     <i class="fas fa-angle-right"></i>
                                 </div>
                             </div>
@@ -58,14 +58,14 @@
                                 <div class="card-body">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <h6 class="text-uppercase mb-1">Activity</h6>
-                                            <h3 class="mb-0">Monitor</h3>
+                                            <h6 class="text-uppercase mb-1">Apply Leave</h6>
+                                            <h3 class="mb-0">New Request</h3>
                                         </div>
-                                        <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                                        <i class="fas fa-calendar-plus fa-2x opacity-50"></i>
                                     </div>
                                 </div>
                                 <div class="card-footer d-flex align-items-center justify-content-between">
-                                    <a href="#" class="text-white text-decoration-none">View Details</a>
+                                    <a href="{{ route('leave.apply') }}" class="text-white text-decoration-none">Apply Now</a>
                                     <i class="fas fa-angle-right"></i>
                                 </div>
                             </div>
@@ -76,24 +76,36 @@
                         <div class="col-12">
                             <div class="card">
                                 <div class="card-header">
-                                    <h5 class="card-title mb-0">Recent Activity</h5>
+                                    <h5 class="card-title mb-0">Recent Leave Applications</h5>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th>Date</th>
-                                                    <th>Activity</th>
+                                                    <th>Date Applied</th>
+                                                    <th>Leave Type</th>
+                                                    <th>Duration</th>
                                                     <th>Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
+                                                @forelse(Auth::user()->leaveApplications ?? [] as $application)
                                                 <tr>
-                                                    <td>{{ now()->format('M d, Y') }}</td>
-                                                    <td>Logged in successfully</td>
-                                                    <td><span class="badge bg-success">Completed</span></td>
+                                                    <td>{{ $application->created_at->format('M d, Y') }}</td>
+                                                    <td>{{ $application->leave_type }}</td>
+                                                    <td>{{ $application->duration }} days</td>
+                                                    <td>
+                                                        <span class="badge bg-{{ $application->status_color }}">
+                                                            {{ $application->status }}
+                                                        </span>
+                                                    </td>
                                                 </tr>
+                                                @empty
+                                                <tr>
+                                                    <td colspan="4" class="text-center">No leave applications found</td>
+                                                </tr>
+                                                @endforelse
                                             </tbody>
                                         </table>
                                     </div>

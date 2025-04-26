@@ -30,6 +30,7 @@ class User extends MongoDBUser implements AuthenticatableContract
         'email',
         'password',
         'mobile',
+        'address',
         'active',
         'archived',
         'refNo',
@@ -117,5 +118,27 @@ class User extends MongoDBUser implements AuthenticatableContract
     public function verifyPassword(string $password): bool
     {
         return Hash::check($password, $this->password);
+    }
+
+    /**
+     * Get the user's role.
+     */
+    public function getRoleAttribute()
+    {
+        if (!isset($this->attributes['role'])) {
+            return null;
+        }
+        return Role::find($this->attributes['role']);
+    }
+
+    /**
+     * Check if the user is a teacher.
+     *
+     * @return bool
+     */
+    public function isTeacher(): bool
+    {
+        $role = $this->getRoleAttribute();
+        return $role && strtoupper($role->name) === 'TEACHER';
     }
 }

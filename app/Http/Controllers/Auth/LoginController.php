@@ -10,6 +10,7 @@ use App\Models\VerificationCode;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Log;
 
 class LoginController extends Controller
 {
@@ -47,15 +48,35 @@ class LoginController extends Controller
             ]);
         }
 
+        // Check if user is a teacher before sending verification code
+        if (!$user->isTeacher()) {
+            $roleName = $user->role ? $user->role->name : 'Unknown';
+            return back()->withErrors([
+                'email' => "Access denied. This system is only accessible to teachers. Your account has the role: {$roleName}.",
+            ]);
+        }
+
         // Generate a 6-digit code
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         
+        // Delete any existing unused codes for this email
+        VerificationCode::where('email', $request->email)
+            ->where('used', false)
+            ->delete();
+        
         // Create verification code record
-        VerificationCode::create([
+        $verificationCode = VerificationCode::create([
             'email' => $request->email,
             'code' => $code,
             'expires_at' => Carbon::now()->addMinutes(5),
             'used' => false
+        ]);
+
+        // Log the created verification code for debugging
+        Log::info('Verification code created', [
+            'email' => $request->email,
+            'code' => $code,
+            'expires_at' => $verificationCode->expires_at
         ]);
 
         // Send email with verification code
@@ -101,11 +122,26 @@ class LoginController extends Controller
             ]);
         }
 
+        // Log the verification attempt
+        Log::info('Verification attempt', [
+            'email' => $email,
+            'code' => $request->code
+        ]);
+
         $verificationCode = VerificationCode::where('email', $email)
             ->where('code', $request->code)
             ->where('used', false)
             ->where('expires_at', '>', now())
             ->first();
+
+        // Log the verification code query result
+        Log::info('Verification code query result', [
+            'found' => $verificationCode ? true : false,
+            'code_exists' => $verificationCode ? $verificationCode->code : null,
+            'is_used' => $verificationCode ? $verificationCode->used : null,
+            'expires_at' => $verificationCode ? $verificationCode->expires_at : null,
+            'current_time' => now()
+        ]);
 
         if (!$verificationCode) {
             return back()->withErrors([
