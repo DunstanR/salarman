@@ -24,6 +24,7 @@ Route::middleware('auth')->group(function () {
 
     // Profile routes
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     // Leave routes
@@ -31,6 +32,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/leave/apply', [LeaveController::class, 'create'])->name('leave.apply');
     Route::post('/leave/apply', [LeaveController::class, 'store'])->name('leave.store');
     Route::get('/leave/history', [LeaveController::class, 'history'])->name('leave.history');
+    Route::post('/leave/{application}/approve', [LeaveController::class, 'approve'])->name('leave.approve');
+    Route::post('/leave/{application}/reject', [LeaveController::class, 'reject'])->name('leave.reject');
+    Route::post('/leave/{application}/verify-document', [LeaveController::class, 'verifyDocument'])->name('leave.verify-document');
 
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 });

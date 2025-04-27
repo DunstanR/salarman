@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Contracts\Auth\Access\Authorizable as AuthorizableContract;
 use Illuminate\Foundation\Auth\Access\Authorizable;
 use Laravel\Sanctum\HasApiTokens;
+use Carbon\Carbon;
 
 class User extends MongoAuthenticatable implements AuthorizableContract
 {
@@ -36,7 +37,8 @@ class User extends MongoAuthenticatable implements AuthorizableContract
         'refNo',
         'role',
         'imageUrl',
-        'department'
+        'department',
+        'gender'
     ];
 
     /**
@@ -171,5 +173,132 @@ class User extends MongoAuthenticatable implements AuthorizableContract
         
         $refNo = $dept->refNo ?? '';
         return $refNo ? "{$dept->depName} ({$refNo})" : $dept->depName;
+    }
+
+    /**
+     * Get the user's leave applications.
+     */
+    public function leaveApplications()
+    {
+        return $this->hasMany(LeaveApplication::class, 'user_id', '_id');
+    }
+
+    /**
+     * Get the user's leave balance for a specific leave type.
+     */
+    public function getLeaveBalance(string $leaveTypeCode): int
+    {
+        $leaveType = LeaveType::where('code', $leaveTypeCode)->first();
+        if (!$leaveType) {
+            return 0;
+        }
+
+        return $leaveType->getBalanceFor($this);
+    }
+
+    /**
+     * Get all leave balances for the user.
+     */
+    public function getAllLeaveBalances(): array
+    {
+        $balances = [];
+        $leaveTypes = LeaveType::all();
+
+        foreach ($leaveTypes as $leaveType) {
+            if ($leaveType->isAvailableFor($this)) {
+                $balances[$leaveType->code] = [
+                    'name' => $leaveType->name,
+                    'total' => $leaveType->days_per_year,
+                    'used' => $leaveType->days_per_year - $leaveType->getBalanceFor($this),
+                    'remaining' => $leaveType->getBalanceFor($this)
+                ];
+            }
+        }
+
+        return $balances;
+    }
+
+    /**
+     * Check if the user can apply for a specific leave type.
+     */
+    public function canApplyForLeave(string $leaveTypeCode, Carbon $startDate, Carbon $endDate): bool
+    {
+        $leaveType = LeaveType::where('code', $leaveTypeCode)->first();
+        if (!$leaveType) {
+            return false;
+        }
+
+        // Check if leave type is available for user
+        if (!$leaveType->isAvailableFor($this)) {
+            return false;
+        }
+
+        // Check if user has sufficient balance
+        if ($leaveType->getBalanceFor($this) < $startDate->diffInDays($endDate) + 1) {
+            return false;
+        }
+
+        // Check consecutive days limit
+        if ($leaveType->consecutive_days_limit && 
+            $startDate->diffInDays($endDate) + 1 > $leaveType->consecutive_days_limit) {
+            return false;
+        }
+
+        // Check minimum notice period
+        if (!$leaveType->can_be_applied_same_day && 
+            $startDate->diffInDays(now()) < $leaveType->minimum_notice_days) {
+            return false;
+        }
+
+        // Check if there's any overlapping leave
+        $hasOverlapping = $this->leaveApplications()
+            ->where('status', 'approved')
+            ->where(function($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function($q) use ($startDate, $endDate) {
+                        $q->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                    });
+            })
+            ->exists();
+
+        if ($hasOverlapping) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Get the user's gender, defaulting to 'f' for teachers if not specified.
+     *
+     * @return string
+     */
+    public function getGenderAttribute(): string
+    {
+        if (isset($this->attributes['gender'])) {
+            return $this->attributes['gender'];
+        }
+
+        return $this->isTeacher() ? 'f' : 'm';
+    }
+
+    /**
+     * Set the user's gender.
+     *
+     * @param string|null $value
+     */
+    public function setGenderAttribute(?string $value)
+    {
+        if ($value) {
+            // Convert any form of male/female input to m/f
+            $lowered = strtolower($value);
+            if (in_array($lowered, ['male', 'm'])) {
+                $this->attributes['gender'] = 'm';
+            } elseif (in_array($lowered, ['female', 'f'])) {
+                $this->attributes['gender'] = 'f';
+            }
+        }
     }
 }

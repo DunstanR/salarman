@@ -56,6 +56,13 @@ class LoginController extends Controller
             ]);
         }
 
+        // Check if user is inactive or archived
+        if (!$user->isActive() || $user->isArchived()) {
+            return back()->withErrors([
+                'email' => 'At this time you do not have permission to login to the System. Please contact the Administrator for more information.',
+            ]);
+        }
+
         // Generate a 6-digit code
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         
